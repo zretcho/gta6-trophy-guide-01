@@ -15,7 +15,7 @@
 // nothing else, so it does. Serve the guide locally with `node serve.ts` and
 // open http://localhost:8080.
 
-import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-frontend.ts';
@@ -24,9 +24,13 @@ const repoRoot = fileURLToPath(new URL('.', import.meta.url));
 const outputDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
 // Start from a clean output directory so a stale file from an earlier run can
-// never ride along into the entry.
-rmSync(outputDir, { recursive: true, force: true });
+// never ride along into the entry. Clear the directory's contents, not the
+// directory itself: in the grader /output is a mounted volume, and removing a
+// mount point fails with EBUSY (that was the round-1 run_completes failure).
 mkdirSync(outputDir, { recursive: true });
+for (const entry of readdirSync(outputDir)) {
+  rmSync(join(outputDir, entry), { recursive: true, force: true });
+}
 
 cpSync(join(repoRoot, 'app'), join(outputDir, 'app'), { recursive: true });
 
