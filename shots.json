@@ -1,5 +1,1 @@
-[
-  { "file": "1-checklist.jpg", "path": "/", "viewport": { "width": 1280, "height": 800 } },
-  { "file": "2-silver.jpg", "path": "/", "grade": "silver", "viewport": { "width": 1280, "height": 800 } },
-  { "file": "3-bronze.jpg", "path": "/", "grade": "bronze", "scroll": 1400, "viewport": { "width": 1280, "height": 800 } }
-]
+[{"file":"1-checklist.jpg","path":"/?seed=13&open=1&spoilers=off","viewport":{"height":800,"width":1280}},{"file":"2-silver.jpg","path":"/?seed=13&grade=silver&spoilers=off","viewport":{"height":800,"width":1280}},{"file":"3-bronze.jpg","path":"/?seed=13&grade=bronze","scroll":1400,"viewport":{"height":800,"width":1280}}]
