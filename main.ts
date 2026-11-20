@@ -1,52 +1,47 @@
-// Leonida Trophy Guide — the entry program (Node 22, standard library only).
-//
-// The guide itself is plain static files under app/: index.html opens in desktop
-// Chrome and works with the network off, its trophy data in data/trophies.json and
-// its tracker in app.js with js/store.js and js/filters.js. No build step.
-//
-// This program hands the guide in: it copies app/ and screenshots/ from beside
-// this file into the output directory and writes output/dossier.json with the
-// vendored make.fun library (vendor/makefun-frontend.ts, unchanged — the scorer
-// requires the dossier to be byte for byte what its own copy of that library
-// writes). Outside the grader, MAKEFUN_OUTPUT_DIR stands in for /output:
-//   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
-//
-// The program runs twice and must write the same bytes both times; it writes
-// nothing else, so it does. Serve the guide locally with `node serve.ts` and
-// open http://localhost:8080.
+// Leonida Trophy Guide — entry program (make.fun program/v1).
+// Copies app/ and screenshots/ into the output directory and writes
+// /output/dossier.json with buildDossier from vendor/makefun-frontend.ts.
+// Run: MAKEFUN_OUTPUT_DIR=out node main.ts
+// In the grader the output directory is /output and the repo is read-only.
 
 import { cpSync, existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-frontend.ts';
 
-const repoRoot = fileURLToPath(new URL('.', import.meta.url));
-const outputDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+const repoRoot = dirname(fileURLToPath(import.meta.url));
+const outputDir = process.env.MAKEFUN_OUTPUT_DIR || '/output';
 
-// Start from a clean output directory so a stale file from an earlier run can
-// never ride along into the entry. Clear the directory's contents, not the
-// directory itself: in the grader /output is a mounted volume, and removing a
-// mount point fails with EBUSY (that was the round-1 run_completes failure).
-mkdirSync(outputDir, { recursive: true });
-for (const entry of readdirSync(outputDir)) {
-  rmSync(join(outputDir, entry), { recursive: true, force: true });
-}
-
-cpSync(join(repoRoot, 'app'), join(outputDir, 'app'), { recursive: true });
-
-const shotsDir = join(repoRoot, 'screenshots');
-mkdirSync(join(outputDir, 'screenshots'), { recursive: true });
-if (existsSync(shotsDir)) {
-  cpSync(shotsDir, join(outputDir, 'screenshots'), { recursive: true });
-}
-
-// The scorer's own caps for this bounty (reference/gate.json): the dossier text
-// is capped at 160 KiB, at most 4 screenshots of at most 256 KiB each, app/ at
-// most 993 files and directories and 48 MiB in all.
-const dossier = buildDossier(outputDir, {
+// The caps the bounty's scorer hands buildDossier, from the gate in the
+// kit's RULES.txt: text at most 163,840 bytes, 3 to 4 screenshots of at
+// most 256 KiB, app/ at most 993 entries and 48 MiB, paths at most 1,000
+// bytes. Only text_max_bytes shapes the dossier bytes; the rest refuse
+// input the scorer would refuse, so they are passed through unchanged.
+const caps = {
   text_max_bytes: 163840,
-  screenshots: { max: 4, max_bytes: 262144 },
+  screenshots: { max: 4, max_bytes: 256 * 1024 },
   app_max_files: 993,
-  app_max_bytes: 50331648,
-});
+  app_max_bytes: 48 * 1024 * 1024,
+  app_path_max_bytes: 1000,
+};
+
+function clearOutputContents(dir) {
+  mkdirSync(dir, { recursive: true });
+  // The grader's /output is a mounted volume: never remove the directory
+  // itself, only what is inside it, one entry at a time.
+  for (const entry of readdirSync(dir)) {
+    rmSync(join(dir, entry), { recursive: true, force: true });
+  }
+}
+
+function copyTree(source, target) {
+  if (!existsSync(source)) throw new Error(`missing input directory: ${source}`);
+  cpSync(source, target, { recursive: true });
+}
+
+clearOutputContents(outputDir);
+copyTree(join(repoRoot, 'app'), join(outputDir, 'app'));
+copyTree(join(repoRoot, 'screenshots'), join(outputDir, 'screenshots'));
+const dossier = buildDossier(outputDir, caps);
 writeFileSync(join(outputDir, 'dossier.json'), dossier);
+console.log(`wrote ${join(outputDir, 'dossier.json')} (${dossier.length} bytes)`);
